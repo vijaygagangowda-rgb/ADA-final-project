@@ -86,7 +86,7 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
    - Ensure the file contains all required variables: race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic, median_household_income_inflation_adj_to_2021, combined_summary_stage_2004, age_recode_with_1_year_olds, sex, survival_months, seer_cause_specific_death_classification, year_of_diagnosis
 
 3. **Update File Path**
-   - Open `SEER_Analysis_Simplified.Rmd` in RStudio
+   - Open `SEER_Analysis_Final.Rmd` in RStudio
    - Update the file path in the `load-data` chunk to match your local directory:
    ```r
    seer <- read.csv("YOUR_PATH_HERE/seerfinal_export.csv")
@@ -99,10 +99,10 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 5. **Run the Analysis**
    - Click "Knit" button in RStudio to generate complete HTML report
    - Alternatively, run line-by-line using Ctrl+Enter
-   - Or execute entire script: `rmarkdown::render("SEER_Analysis_Simplified.Rmd")`
+   - Or execute entire script: `rmarkdown::render("SEER_Analysis_Final.Rmd")`
 
 6. **View Results**
-   - HTML output file will be generated: `SEER_Analysis_Simplified.html`
+   - HTML output file will be generated: `SEER_Analysis_Final.html`
    - Open in web browser for formatted tables, figures, and complete analysis
 
 ## Key Findings
@@ -119,7 +119,7 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 2. County-level vs. individual-level income (ecological fallacy)
 3. No treatment data available in SEER
 4. Missing comorbidity information
-5. SEER represents ~35% of US population (regional limitations)
+5. SEER represents ~35% of the US population (regional limitations)
 6. Cancer-specific vs. all-cause mortality only
 7. No data beyond 2020
 8. Unmeasured confounding possible
@@ -142,7 +142,7 @@ For questions or inquiries regarding this analysis, please contact:
 
 ## Citation
 
-Vijay, G., (2025). Race/ethnicity, county-level poverty, and colon cancer-specific survival in SEER, 2010-2020. *Washington University in St. Louis, School of Public Health.*
+Vijay, G. (2025). Race/ethnicity, county-level poverty, and colon cancer-specific survival in SEER, 2010-2020. *Washington University in St. Louis, School of Public Health.*
 
 ## License
 
