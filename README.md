@@ -1,65 +1,62 @@
-# ADA-final-project
-
-# Race/Ethnicity, County-Level Poverty, and Colon Cancer-Specific Survival in SEER, 2010-2020
+# ADA-Final-Project: Race/Ethnicity, County-Level Poverty, and Colon Cancer-Specific Survival in SEER, 2010-2020
 
 ## Project Description
 
-This repository contains a comprehensive analysis of health disparities in colon cancer survival using data from the Surveillance, Epidemiology, and End Results (SEER) database. The project examines the relationship between race/ethnicity, county-level income, and cancer-specific survival outcomes among 181,264 colon cancer patients diagnosed between 2010 and 2020. The analysis employs multiple statistical methods, including Kaplan-Meier survival curves, Cox proportional hazards models, Restricted Mean Survival Time (RMST), and stratified temporal analyses to identify and characterize health equity disparities in cancer outcomes.
+This repository contains a comprehensive analysis of health disparities in colon cancer survival using data from the Surveillance, Epidemiology, and End Results (SEER) database. The project examines three specific objectives: (1) estimating the association between race/ethnicity and colon cancer-specific survival, (2) estimating the association between county-level poverty and survival, and (3) assessing whether county-level income modifies the race/ethnicity–mortality association. The analysis includes 181,264 colon cancer patients diagnosed between 2010 and 2020, employing Kaplan-Meier survival curves, Cox proportional hazards models, Restricted Mean Survival Time (RMST), and effect modification testing to characterize health equity disparities in cancer outcomes.
 
-This project is part of graduate-level coursework in Public Health at Washington University in St. Louis, for Advanced Data Analytics with Dr. Kim Johnson. 
+This project is part of graduate-level coursework in Advanced Data Analytics in Public Health at Washington University in St. Louis, taught by Dr. Kim Johnson.
 
 ## Files Included
 
-- `seerfinal_export.csv`: SEER registry data containing 182,113 colon cancer patients with clinical, demographic, and socioeconomic variables (Not included in repository - obtained from SEER directly)
-- `SEER_Analysis_Final.Rmd`: Complete R Markdown script containing data preparation, descriptive analysis, Kaplan-Meier curves, Cox regression models, RMST analysis, stratified analyses, and comprehensive results synthesis
+- `seerfinal_export.csv`: SEER registry data containing 182,113 colon cancer patients with clinical, demographic, and socioeconomic variables (Not included in repository—obtained directly from SEER)
+- `SEER_Analysis_Corrected_Final.Rmd`: Complete R Markdown script containing data preparation, descriptive statistics, Kaplan-Meier curves, Cox regression models, RMST analysis, interaction testing, and comprehensive results and discussion
 - `README.md`: This file
 
 ## What the Code Does
 
-The `SEER_Analysis_Final.Rmd` script performs the following analyses:
+The `SEER_Analysis_Corrected_Final.Rmd` script performs the following analyses:
 
-1. **Data Preparation and Cleaning**
-   - Loads and recodes SEER database fields
-   - Creates categorical variables for race/ethnicity (6 categories: NHW, NHB, Hispanic, API, AIAN, Other)
-   - Recodes income into 5 ordered categories based on county-level median household income
-   - Generates age, sex, stage, and survival outcome variables
-   - Performs complete case analysis (N = 181,264 after exclusions)
+### 1. Data Preparation and Cleaning
+- Loads and recodes SEER database fields
+- Creates categorical variables for race/ethnicity (6 categories: NHW, NHB, Hispanic, API, AIAN, Other)
+- Recodes income into 5 ordered categories based on county-level median household income thresholds
+- Generates age, sex, stage, and survival outcome variables
+- Performs complete case analysis (N = 181,264 after exclusions of missing data)
 
-2. **Descriptive Statistics**
-   - Summarizes study population by race/ethnicity, income category, and cancer stage
-   - Reports event rates, median follow-up times, and mean ages across strata
-   - Creates publication-ready formatted tables
+### 2. Descriptive Statistics
+- Summarizes study population by race/ethnicity, income category, and cancer stage
+- Reports event rates, median follow-up times, and mean ages across demographic strata
+- Creates publication-ready formatted tables
 
-3. **Kaplan-Meier Survival Analysis**
-   - Generates survival curves by race/ethnicity with log-rank tests
-   - Generates survival curves by income category with log-rank tests
-   - Generates survival curves by cancer stage with log-rank tests
-   - Provides visualization of survival disparities over time
+### 3. Kaplan-Meier Survival Analysis (Preliminary)
+- Generates survival curves by race/ethnicity with log-rank statistical tests
+- Generates survival curves by income category with log-rank tests
+- Generates survival curves by cancer stage with log-rank tests
+- Provides visual representation of survival disparities
 
-4. **Cox Proportional Hazards Regression**
-   - Fits main effects model: Surv(time, event) ~ race_ethnicity + income_cat + age_numeric + sex_binary + stage + year_of_diagnosis
-   - Fits interaction model: race_ethnicity × income_cat interactions
-   - Performs Likelihood Ratio Test to compare model fit
-   - Tests the proportional hazards assumption using Schoenfeld residuals
-   - Reports hazard ratios with 95% confidence intervals
+### 4. Cox Proportional Hazards Models
+- **Main Effects Model:** Tests associations with race/ethnicity and income, adjusted for age, sex, stage, and year of diagnosis
+- **Tests Proportional Hazards Assumption:** Uses Schoenfeld residuals test; identifies assumption violation
+- **Interaction Model:** Tests race × income interactions to assess effect modification
+- **Likelihood Ratio Test:** Compares main effects vs. interaction model fit
+- Reports hazard ratios with 95% confidence intervals
 
-5. **Restricted Mean Survival Time (RMST) Analysis**
-   - Calculates RMST within a 60-month window for each race/ethnicity group
-   - Calculates RMST for each income category
-   - Computes differences vs. reference groups
-   - Provides clinically interpretable months of survival estimates
+### 5. Restricted Mean Survival Time (RMST) Analysis
+- Calculates RMST within a 60-month window for each race/ethnicity group (PRIMARY OBJECTIVE 1)
+- Calculates RMST for each income category (PRIMARY OBJECTIVE 2)
+- Computes differences versus reference groups with clinical interpretation
+- Chosen as primary analysis method due to proportional hazards assumption violation
 
-6. **Stratified Temporal Analyses**
-   - Fits separate Cox models for the early period (0-12 months)
-   - Fits separate Cox models for the intermediate period (12-36 months)
-   - Fits separate Cox models for the late period (36+ months)
-   - Examines how disparities change across the disease trajectory
+### 6. Effect Modification Assessment
+- Tests and reports race × income interaction terms (SECONDARY OBJECTIVE)
+- Interprets interaction coefficients
+- Determines whether income modifies the race/ethnicity–mortality association
 
-7. **Statistical Output**
-   - Generates formatted tables for all results
-   - Produces publication-ready figures
-   - Calculates concordance indices for model performance
-   - Provides comprehensive statistical inference
+### 7. Statistical Output
+- Generates formatted tables for all results
+- Produces publication-ready figures (Kaplan-Meier curves, diagnostic plots)
+- Calculates model performance metrics (concordance index)
+- Provides comprehensive statistical inference and interpretation
 
 ## How to Run the Code
 
@@ -83,80 +80,114 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 2. **Obtain SEER Data**
    - Request SEER data from https://seer.cancer.gov/data/
    - Save as `seerfinal_export.csv` in the project directory
-   - Ensure the file contains all required variables: race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic, median_household_income_inflation_adj_to_2021, combined_summary_stage_2004, age_recode_with_1_year_olds, sex, survival_months, seer_cause_specific_death_classification, year_of_diagnosis
+   - Ensure the file contains all required variables:
+     - race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic
+     - median_household_income_inflation_adj_to_2021
+     - combined_summary_stage_2004
+     - age_recode_with_1_year_olds
+     - sex
+     - survival_months
+     - seer_cause_specific_death_classification
+     - year_of_diagnosis
 
 3. **Update File Path**
-   - Open `SEER_Analysis_Final.Rmd` in RStudio
-   - Update the file path in the `load-data` chunk to match your local directory:
+   - Open `SEER_Analysis_Corrected_Final.Rmd` in RStudio
+   - Update the file path in the `load-data` chunk:
    ```r
    seer <- read.csv("YOUR_PATH_HERE/seerfinal_export.csv")
    ```
 
 4. **Set Working Directory**
-   - In RStudio: Session → Set Working Directory → Choose Directory
+   - In RStudio: Session -> Set Working Directory -> Choose Directory
    - Or use: `setwd("YOUR_PATH_HERE")`
 
 5. **Run the Analysis**
    - Click "Knit" button in RStudio to generate complete HTML report
    - Alternatively, run line-by-line using Ctrl+Enter
-   - Or execute entire script: `rmarkdown::render("SEER_Analysis_Final.Rmd")`
+   - Or execute entire script: `rmarkdown::render("SEER_Analysis_Corrected_Final.Rmd")`
 
 6. **View Results**
-   - HTML output file will be generated: `SEER_Analysis_Final.html`
+   - HTML output file will be generated: `SEER_Analysis_Corrected_Final.html`
    - Open in web browser for formatted tables, figures, and complete analysis
 
 ## Key Findings
 
-- **Non-Hispanic Black patients** experience 18% excess hazard of cancer-specific death (HR = 1.18, p < 0.0001)
-- **Racial disparities are dynamic**, emerging in intermediate follow-up (HR = 1.09 at 12-36 months) and maximizing in late follow-up (HR = 1.36 at 36+ months), with NO significant disparity in early period (0-12 months)
-- **Income gradient evident**: High-income patients gain 2.57 months of survival (6% longer life) compared to low-income patients
-- **Cancer stage is strongest predictor** (HR = 9.57 for localized vs. distant)
-- **Model performance excellent**: Concordance Index = 0.824
+**Primary Objective 1 - Race/Ethnicity Association:**
+- Non-Hispanic Black patients experience 18% excess hazard of cancer-specific death (HR = 1.18, 95% CI: 1.15-1.21, p < 0.0001)
+- RMST: NHB patients lose 2.31 months of survival vs. NHW (42.48 vs. 44.79 months in 60-month window)
+- Asian/Pacific Islander patients show favorable outcomes (HR = 0.91, +1.90 months RMST)
+
+**Primary Objective 2 - Income Association:**
+- Clear socioeconomic dose-response gradient: High-income patients gain 2.57 months survival vs. low-income
+- Linear trend: Each income category elevation = 11% hazard reduction (HR = 0.89, p < 0.0001)
+- RMST: Low income 43.31 months → High income 45.88 months
+
+**Secondary Objective - Effect Modification:**
+- Race - income interaction model is statistically significant (χ² = 32.94, p = 0.0343)
+- However, the effect is modest (20 new parameters yield only χ² gain of 32.94)
+- Most individual interaction coefficients are non-significant (p > 0.05)
+- **Interpretation:** Race and income effects are largely independent rather than synergistic
+
+**Overall Model Performance:**
+- Concordance Index = 0.824 (excellent discrimination)
+- Cancer stage strongest predictor (HR = 9.57 for localized vs. distant)
+- Proportional hazards assumption violated globally (χ² = 2363.36, p < 0.0001), justifying RMST as primary analysis
 
 ## Study Limitations
 
-1. Proportional hazards assumption violated (χ² = 2363.36, p < 0.0001)
-2. County-level vs. individual-level income (ecological fallacy)
-3. No treatment data available in SEER
-4. Missing comorbidity information
-5. SEER represents ~35% of the US population (regional limitations)
-6. Cancer-specific vs. all-cause mortality only
-7. No data beyond 2020
-8. Unmeasured confounding possible
+1. **Proportional Hazards Assumption Violation:** While RMST addresses this mathematically, results should not be extrapolated beyond 60 months
+
+2. **County-Level vs. Individual-Level Income:** Subject to ecological fallacy; individual patient-level SES would be more precise
+
+3. **No Treatment Data:** SEER does not consistently record chemotherapy, radiation, or surgical approach details
+
+4. **Missing Comorbidity Information:** Unmeasured baseline health differences could confound associations
+
+5. **Complete Case Analysis:** Assumes data missing completely at random (MCAR)
+
+6. **Regional Representation:** SEER covers approximately 35% of U.S. population; findings may not be nationally generalizable
+
+7. **Cancer-Specific Mortality Only:** Competing mortality from other causes not captured
+
+8. **"Other" Race Category:** Small sample size (N = 1,129, 54 events) results in imprecise estimates
+
+9. **Temporal Generalization:** Findings cover 2010-2020; may not reflect current disparities (2024+)
+
+10. **Unmeasured Confounding:** Potential confounding from provider implicit bias, patient health literacy, insurance type/stability, and tumor biology
+
+11. **Interaction Effect Size:** While statistically significant, the practical magnitude of effect modification is small
 
 ## Author
 
 - **Name:** Gagan Vijay
 - **Program:** Master of Public Health (MPH)
 - **Institution:** Washington University in St. Louis
-- **School:**  School of Public Health
-- **Faculty:** Dr. Kim Johnson
+- **School:** Brown School of Social Work / School of Public Health
+- **Faculty Advisor:** Dr. Kim Johnson
+- **Course:** Advanced Data Analytics in Public Health
 - **Date:** December 2025
 
 ## Contact
 
 For questions or inquiries regarding this analysis, please contact:
-- Gagan Vijay: [g.vijay@wustl.edu]
-
-
+- Gagan Vijay: g.vijay@wustl.edu
 
 ## Citation
 
-Vijay, G. (2025). Race/ethnicity, county-level poverty, and colon cancer-specific survival in SEER, 2010-2020. *Washington University in St. Louis, School of Public Health.*
+Vijay, G. (2025). Race/ethnicity, county-level poverty, and colon cancer-specific survival in SEER, 2010-2020. *Advanced Data Analytics Final Project, Washington University in St. Louis, School of Public Health.*
 
 ## License
 
-This project is provided for educational and research purposes. Use of SEER data is subject to SEER data use agreements and terms.
+This project is provided for educational and research purposes. Use of SEER data is subject to SEER data use agreements and terms of service. For more information, visit https://seer.cancer.gov/data/
 
 ## Acknowledgments
 
 - SEER Program of the National Cancer Institute for providing the cancer registry data
-- Washington University in St. Louis for research support
-- Dr. Kim Johnson for mentorship and guidance
+- Washington University in St. Louis for research support and institutional resources
+- Dr. Kim Johnson for mentorship, guidance, and feedback throughout the project
 
 ---
 
-**Last Updated:** December 2025  
-**Analysis Date:** December 1, 2025  
-**Status:** Complete
-
+**Last Updated:** December 3, 2025  
+**Analysis Date:** December 3, 2025  
+**Status:** Complete and Ready for Submission
