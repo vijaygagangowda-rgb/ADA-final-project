@@ -9,12 +9,13 @@ This project is part of graduate-level coursework in Advanced Data Analytics in 
 ## Files Included
 
 - `seerfinal_export.csv`: SEER registry data containing 182,113 colon cancer patients with clinical, demographic, and socioeconomic variables (Not included in repository—obtained directly from SEER)
-- `SEER_Analysis_Corrected_Final.Rmd`: Complete R Markdown script containing data preparation, descriptive statistics, Kaplan-Meier curves, Cox regression models, RMST analysis, interaction testing, and comprehensive results and discussion
+- `SEER_Analysis_Final.Rmd`: Complete R Markdown script containing data preparation, descriptive statistics, Kaplan-Meier curves, Cox regression models, RMST analysis, interaction testing, and comprehensive results and discussion
+-  `SEER_Analysis_Final.html`: Knitted HTML document of the Rmd file above with all the exact details.
 - `README.md`: This file
 
 ## What the Code Does
 
-The `SEER_Analysis_Corrected_Final.Rmd` script performs the following analyses:
+The `SEER_Analysis_Final.Rmd` script performs the following analyses:
 
 ### 1. Data Preparation and Cleaning
 - Loads and recodes SEER database fields
@@ -91,7 +92,7 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
      - year_of_diagnosis
 
 3. **Update File Path**
-   - Open `SEER_Analysis_Corrected_Final.Rmd` in RStudio
+   - Open `SEER_Analysis_Final.Rmd` in RStudio
    - Update the file path in the `load-data` chunk:
    ```r
    seer <- read.csv("YOUR_PATH_HERE/seerfinal_export.csv")
@@ -107,7 +108,7 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
    - Or execute entire script: `rmarkdown::render("SEER_Analysis_Corrected_Final.Rmd")`
 
 6. **View Results**
-   - HTML output file will be generated: `SEER_Analysis_Corrected_Final.html`
+   - HTML output file will be generated: `SEER_Analysis_Final.html`
    - Open in web browser for formatted tables, figures, and complete analysis
 
 ## Key Findings
