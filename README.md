@@ -6,7 +6,7 @@
 
 This repository contains a comprehensive analysis of health disparities in colon cancer survival using data from the Surveillance, Epidemiology, and End Results (SEER) database. The project examines the relationship between race/ethnicity, county-level income, and cancer-specific survival outcomes among 181,264 colon cancer patients diagnosed between 2010 and 2020. The analysis employs multiple statistical methods, including Kaplan-Meier survival curves, Cox proportional hazards models, Restricted Mean Survival Time (RMST), and stratified temporal analyses to identify and characterize health equity disparities in cancer outcomes.
 
-This project is part of graduate-level coursework in Public Health at Washington University in St. Louis, for Advanced Data Analytics with Dr. Kim Jhonson. 
+This project is part of graduate-level coursework in Public Health at Washington University in St. Louis, for Advanced Data Analytics with Dr. Kim Johnson. 
 
 ## Files Included
 
@@ -130,7 +130,7 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 - **Program:** Master of Public Health (MPH)
 - **Institution:** Washington University in St. Louis
 - **School:**  School of Public Health
-- **Faculty:** Dr. Kim Jhonson
+- **Faculty:** Dr. Kim Johnson
 - **Date:** December 2025
 
 ## Contact
@@ -152,7 +152,7 @@ This project is provided for educational and research purposes. Use of SEER data
 
 - SEER Program of the National Cancer Institute for providing the cancer registry data
 - Washington University in St. Louis for research support
-- Dr. Kim Jhonson for mentorship and guidance
+- Dr. Kim Johnson for mentorship and guidance
 
 ---
 
