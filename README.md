@@ -4,9 +4,9 @@
 
 ## Project Description
 
-This repository contains a comprehensive analysis of health disparities in colon cancer survival using data from the Surveillance, Epidemiology, and End Results (SEER) database. The project examines the relationship between race/ethnicity, county-level income, and cancer-specific survival outcomes among 181,264 colon cancer patients diagnosed between 2010 and 2020. The analysis employs multiple statistical methods including Kaplan-Meier survival curves, Cox proportional hazards models, Restricted Mean Survival Time (RMST), and stratified temporal analyses to identify and characterize health equity disparities in cancer outcomes.
+This repository contains a comprehensive analysis of health disparities in colon cancer survival using data from the Surveillance, Epidemiology, and End Results (SEER) database. The project examines the relationship between race/ethnicity, county-level income, and cancer-specific survival outcomes among 181,264 colon cancer patients diagnosed between 2010 and 2020. The analysis employs multiple statistical methods, including Kaplan-Meier survival curves, Cox proportional hazards models, Restricted Mean Survival Time (RMST), and stratified temporal analyses to identify and characterize health equity disparities in cancer outcomes.
 
-This project is part of graduate-level coursework in Public Health at Washington University in St. Louis, conducted under the mentorship of Dr. Melissa Jonson-Reid (Brown School) and Dr. John N. Constantino (School of Medicine) within the CICM DataSMART research team.
+This project is part of graduate-level coursework in Public Health at Washington University in St. Louis, for Advanced Data Analytics with Dr. Kim Jhonson. 
 
 ## Files Included
 
