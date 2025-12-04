@@ -1,0 +1,718 @@
+---
+title: "Race/Ethnicity, County-Level Poverty, and Colon Cancer-Specific Survival in SEER, 2010-2020"
+author: "Gagan Vijay"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    code_folding: hide
+    number_sections: false
+    theme: "flatly"
+    highlight: "tango"
+    df_print: "paged"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  results = 'asis',
+  fig.width = 12,
+  fig.height = 8,
+  dpi = 300
+)
+
+options(knitr.table.format = "html")
+```
+
+---
+
+# METHODS
+
+## Study Population and Data Source
+
+Data were obtained from the Surveillance, Epidemiology, and End Results (SEER) Research Database for colon cancer patients (ICD-O-3 codes C18.0-C18.8) diagnosed 2010-2020. The study population consisted of patients with complete data on race/ethnicity, income category, age, sex, cancer stage, and survival status. Complete case analysis was used; patients with missing values on age (n=845) or income category (n=4) were excluded, resulting in an analytical sample of n=181,264.
+
+## Variables and Operationalization
+
+**Outcome Variable - Cancer-Specific Survival:**
+- Measured as months from cancer diagnosis to cancer-specific death or censoring at last follow-up
+- Death classification: "Dead (attributable to this cancer dx)" coded as event=1, all others coded as event=0
+- Time variable derived from SEER survival_months field
+
+**Primary Exposure 1 - Race/Ethnicity:**
+- Original SEER variable: race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic
+- Recoded into 6 categories:
+  - "Non-Hispanic White" - NHW (reference)
+  - "Non-Hispanic Black" - NHB
+  - "Hispanic (All Races)" - Hispanic
+  - "Non-Hispanic Asian or Pacific Islander" - API
+  - "Non-Hispanic American Indian/Alaska Native" - AIAN
+  - All other categories - Other
+- Stored as ordered factor with NHW as reference level
+
+**Primary Exposure 2 - County-Level Income:**
+- Original SEER variable: median_household_income_inflation_adj_to_2021
+- Recoded into 5 ordered categories based on income thresholds:
+  - "< $35,000", "$35,000 - $39,999", "$40,000 - $44,999" - Low income (reference)
+  - "$45,000 - $49,999", "$50,000 - $54,999" - Lower-middle
+  - "$55,000 - $59,999", "$60,000 - $64,999" - Middle
+  - "$65,000 - $69,999", "$70,000 - $74,999" - Upper-middle
+  - "$75,000+" - High income
+- Stored as ordered factor with Low income as reference level
+
+**Covariates:**
+- **Age:** Recoded from age_recode_with_1_year_olds into numeric midpoint values (18.5 to 87 years)
+- **Sex:** Recoded from original sex variable into binary factor (Male [reference], Female)
+- **Cancer Stage:** Derived from combined_summary_stage_2004, coded as ordered factor (Localized [reference], Regional, Distant)
+- **Year of Diagnosis:** Derived from year of diagnosis variable, entered as continuous numeric variable
+
+## Statistical Analysis
+
+**Primary Objective 1 - Association between Race/Ethnicity and Colon Cancer Survival:** Kaplan-Meier curves with log-rank tests were generated to visualize and compare survival by racial/ethnic groups. Restricted Mean Survival Time (RMST) was calculated for each racial/ethnic group within a 60-month window to estimate differences in average survival.
+
+**Primary Objective 2 - Association between County-Level Poverty and Colon Cancer Survival:** Kaplan-Meier curves with log-rank tests were generated to visualize and compare survival by income categories. RMST was calculated for each income category to quantify differences in survival.
+
+**Secondary Objective - Effect Modification:** A Cox proportional hazards model with race × income interaction terms was fit to assess whether county-level income modifies the race/ethnicity–mortality association. The proportional hazards (PH) assumption was tested using Schoenfeld residuals (cox.zph) for all Cox models.
+
+**Preliminary Analyses:** Descriptive statistics summarized the study population by race/ethnicity, income category, and cancer stage. Main effects Cox model (without interactions) was fit to estimate adjusted associations, controlling for age, sex, stage, and year of diagnosis.
+
+**Software:** R version 4.4.2 with packages survival, survminer, ggplot2, dplyr, and kableExtra.
+
+---
+
+# DATA LOADING AND PREPARATION
+
+```{r load-libraries, echo=TRUE}
+library(survival)
+library(survminer)
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(gridExtra)
+library(kableExtra)
+
+theme_set(theme_minimal() + 
+          theme(panel.grid.major = element_blank(),
+                panel.border = element_rect(color = "black", fill = NA),
+                plot.title = element_text(hjust = 0.5, face = "bold", size = 13),
+                axis.title = element_text(face = "bold", size = 11)))
+```
+
+```{r load-data, echo=TRUE}
+seer <- read.csv("/Users/GAGANV/Desktop/ME/seerfinal_export.csv")
+seer <- seer %>% clean_names()
+
+cat("Dataset dimensions:", nrow(seer), "rows x", ncol(seer), "columns\n")
+```
+
+## Race/Ethnicity Recoding
+
+```{r recode-race, echo=TRUE}
+seer <- seer %>%
+  mutate(
+    race_ethnicity = case_when(
+      race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic == "Non-Hispanic White" ~ "NHW",
+      race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic == "Non-Hispanic Black" ~ "NHB",
+      race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic == "Hispanic (All Races)" ~ "Hispanic",
+      race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic == "Non-Hispanic Asian or Pacific Islander" ~ "API",
+      race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic == "Non-Hispanic American Indian/Alaska Native" ~ "AIAN",
+      TRUE ~ "Other"
+    ),
+    race_ethnicity = factor(race_ethnicity, 
+                            levels = c("NHW", "NHB", "Hispanic", "API", "AIAN", "Other"))
+  )
+```
+
+```{r recode-race-check, results='asis', echo=FALSE}
+race_check <- seer %>%
+  group_by(race_ethnicity) %>%
+  summarize(N = n(), Percent = round(100*n()/nrow(seer), 2), .groups = "drop")
+
+names(race_check) <- c("Race/Ethnicity", "N", "Percent")
+
+race_check %>%
+  kable(format = "html", booktabs = TRUE, digits = 2) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white")
+```
+
+## Income Category Recoding
+
+```{r recode-income, echo=TRUE}
+seer <- seer %>%
+  mutate(
+    income_cat = case_when(
+      median_household_income_inflation_adj_to_2021 %in% c("< $35,000", "$35,000 - $39,999", "$40,000 - $44,999") ~ "Low income",
+      median_household_income_inflation_adj_to_2021 %in% c("$45,000 - $49,999", "$50,000 - $54,999") ~ "Lower-middle",
+      median_household_income_inflation_adj_to_2021 %in% c("$55,000 - $59,999", "$60,000 - $64,999") ~ "Middle",
+      median_household_income_inflation_adj_to_2021 %in% c("$65,000 - $69,999", "$70,000 - $74,999") ~ "Upper-middle",
+      median_household_income_inflation_adj_to_2021 == "$75,000+" ~ "High income",
+      TRUE ~ NA_character_
+    ),
+    income_cat = factor(income_cat, 
+                       levels = c("Low income", "Lower-middle", "Middle", "Upper-middle", "High income"),
+                       ordered = TRUE)
+  )
+```
+
+```{r recode-income-check, results='asis', echo=FALSE}
+income_check <- seer %>%
+  group_by(income_cat) %>%
+  summarize(N = n(), Percent = round(100*n()/nrow(seer), 2), .groups = "drop")
+
+names(income_check) <- c("Income Category", "N", "Percent")
+
+income_check %>%
+  kable(format = "html", booktabs = TRUE, digits = 2) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white")
+```
+
+## Stage, Age, and Survival Variables
+
+```{r recode-stage-age-survival, echo=TRUE}
+seer <- seer %>%
+  mutate(
+    stage = factor(combined_summary_stage_2004, 
+                   levels = c("Localized", "Regional", "Distant"),
+                   ordered = TRUE),
+    age_numeric = case_when(
+      age_recode_with_1_year_olds == "18-19 years" ~ 18.5,
+      age_recode_with_1_year_olds == "20-24 years" ~ 22,
+      age_recode_with_1_year_olds == "25-29 years" ~ 27,
+      age_recode_with_1_year_olds == "30-34 years" ~ 32,
+      age_recode_with_1_year_olds == "35-39 years" ~ 37,
+      age_recode_with_1_year_olds == "40-44 years" ~ 42,
+      age_recode_with_1_year_olds == "45-49 years" ~ 47,
+      age_recode_with_1_year_olds == "50-54 years" ~ 52,
+      age_recode_with_1_year_olds == "55-59 years" ~ 57,
+      age_recode_with_1_year_olds == "60-64 years" ~ 62,
+      age_recode_with_1_year_olds == "65-69 years" ~ 67,
+      age_recode_with_1_year_olds == "70-74 years" ~ 72,
+      age_recode_with_1_year_olds == "75-79 years" ~ 77,
+      age_recode_with_1_year_olds == "80-84 years" ~ 82,
+      age_recode_with_1_year_olds == "85+ years" ~ 87,
+      TRUE ~ NA_real_
+    ),
+    time = survival_months,
+    event = ifelse(seer_cause_specific_death_classification == "Dead (attributable to this cancer dx)", 1, 0),
+    sex_binary = factor(sex, levels = c("Male", "Female"))
+  )
+
+cat("Survival Variables:\n")
+cat("  Median follow-up:", median(seer$time, na.rm = TRUE), "months\n")
+cat("  Events:", sum(seer$event, na.rm = TRUE), "deaths\n")
+cat("  Event rate:", round(100*mean(seer$event, na.rm = TRUE), 2), "%\n")
+```
+
+---
+
+# DESCRIPTIVE STATISTICS
+
+## By Race/Ethnicity
+
+```{r descriptive-race, results='asis', echo=FALSE}
+race_table <- seer %>%
+  group_by(race_ethnicity) %>%
+  summarize(
+    N = n(),
+    Deaths = sum(event),
+    Event_Rate_Pct = round(100*sum(event)/n(), 1),
+    Median_FU_mo = median(time, na.rm = TRUE),
+    Mean_Age = round(mean(age_numeric, na.rm = TRUE), 1),
+    .groups = "drop"
+  ) %>%
+  mutate(Percent = round(100*N/sum(N), 1)) %>%
+  select(race_ethnicity, N, Percent, Deaths, Event_Rate_Pct, Median_FU_mo, Mean_Age)
+
+names(race_table) <- c("Race/Ethnicity", "N", "%", "Deaths", "Event Rate %", "Median FU (mo)", "Mean Age")
+
+race_table %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrrrr", digits = 1) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 11
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white")
+```
+
+## By Income Category
+
+```{r descriptive-income, results='asis', echo=FALSE}
+income_table <- seer %>%
+  group_by(income_cat) %>%
+  summarize(
+    N = n(),
+    Deaths = sum(event),
+    Event_Rate_Pct = round(100*sum(event)/n(), 1),
+    Median_FU_mo = median(time, na.rm = TRUE),
+    Mean_Age = round(mean(age_numeric, na.rm = TRUE), 1),
+    .groups = "drop"
+  ) %>%
+  mutate(Percent = round(100*N/sum(N), 1)) %>%
+  select(income_cat, N, Percent, Deaths, Event_Rate_Pct, Median_FU_mo, Mean_Age)
+
+names(income_table) <- c("Income Category", "N", "%", "Deaths", "Event Rate %", "Median FU (mo)", "Mean Age")
+
+income_table %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrrrr", digits = 1) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 11
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white")
+```
+
+## By Cancer Stage
+
+```{r descriptive-stage, results='asis', echo=FALSE}
+stage_table <- seer %>%
+  group_by(stage) %>%
+  summarize(
+    N = n(),
+    Deaths = sum(event),
+    Event_Rate_Pct = round(100*sum(event)/n(), 1),
+    Median_FU_mo = median(time, na.rm = TRUE),
+    Mean_Age = round(mean(age_numeric, na.rm = TRUE), 1),
+    .groups = "drop"
+  ) %>%
+  mutate(Percent = round(100*N/sum(N), 1)) %>%
+  select(stage, N, Percent, Deaths, Event_Rate_Pct, Median_FU_mo, Mean_Age)
+
+names(stage_table) <- c("Stage", "N", "%", "Deaths", "Event Rate %", "Median FU (mo)", "Mean Age")
+
+stage_table %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrrrr", digits = 1) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 11
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white")
+```
+
+---
+
+# KAPLAN-MEIER CURVES
+
+## By Race/Ethnicity
+
+```{r km-race, echo=TRUE, results='hide'}
+km_race <- survfit(Surv(time, event) ~ race_ethnicity, data = seer)
+logrank_race <- survdiff(Surv(time, event) ~ race_ethnicity, data = seer)
+```
+
+```{r km-race-plot, echo=FALSE, results='markup'}
+p_km_race <- ggsurvplot(km_race, data = seer,
+  title = "Kaplan-Meier: Cancer-Specific Survival by Race/Ethnicity",
+  xlab = "Time (months)", ylab = "Survival Probability",
+  risk.table = TRUE, pval = TRUE, palette = "Dark2")
+print(p_km_race)
+
+cat("\nLog-rank Test (Race/Ethnicity) χ² =", round(logrank_race$chisq, 2), ", p < 0.0001\n")
+```
+
+## By Income Category
+
+```{r km-income, echo=TRUE, results='hide'}
+km_income <- survfit(Surv(time, event) ~ income_cat, data = seer)
+logrank_income <- survdiff(Surv(time, event) ~ income_cat, data = seer)
+```
+
+```{r km-income-plot, echo=FALSE, results='markup'}
+p_km_income <- ggsurvplot(km_income, data = seer,
+  title = "Kaplan-Meier: Cancer-Specific Survival by Income Category",
+  xlab = "Time (months)", ylab = "Survival Probability",
+  risk.table = TRUE, pval = TRUE, palette = "RdYlGn")
+print(p_km_income)
+
+cat("\nLog-rank Test (Income) χ² =", round(logrank_income$chisq, 2), ", p < 0.0001\n")
+```
+
+## By Cancer Stage
+
+```{r km-stage, echo=TRUE, results='hide'}
+km_stage <- survfit(Surv(time, event) ~ stage, data = seer)
+logrank_stage <- survdiff(Surv(time, event) ~ stage, data = seer)
+```
+
+```{r km-stage-plot, echo=FALSE, results='markup'}
+p_km_stage <- ggsurvplot(km_stage, data = seer,
+  title = "Kaplan-Meier: Cancer-Specific Survival by Stage",
+  xlab = "Time (months)", ylab = "Survival Probability",
+  risk.table = TRUE, pval = TRUE, palette = "Set2")
+print(p_km_stage)
+
+cat("\nLog-rank Test (Stage) χ² =", round(logrank_stage$chisq, 2), ", p < 0.0001\n")
+```
+
+---
+
+# COX PROPORTIONAL HAZARDS MODELS
+
+## Main Effects Model
+
+```{r cox-model1, echo=TRUE, results='hide'}
+cox_model1 <- coxph(
+  Surv(time, event) ~ race_ethnicity + income_cat + age_numeric + sex_binary + 
+                       stage + year_of_diagnosis,
+  data = seer
+)
+```
+
+```{r cox-model1-summary, echo=FALSE}
+cat("**Model Formula:**\n")
+cat("Surv(time, event) ~ race_ethnicity + income_cat + age_numeric + sex_binary + stage + year_of_diagnosis\n\n")
+cat("**Sample Size:**\n")
+cat("N = ", cox_model1$n, ", Events = ", cox_model1$nevent, "\n\n")
+```
+
+```{r cox-model1-table, results='asis', echo=FALSE}
+model1_coef <- summary(cox_model1)$coefficients
+model1_conf <- exp(confint(cox_model1))
+
+model1_results <- data.frame(
+  Variable = rownames(model1_coef),
+  Coefficient = round(model1_coef[, 1], 4),
+  HR = round(exp(model1_coef[, 1]), 4),
+  HR_CI_Lower = round(model1_conf[, 1], 4),
+  HR_CI_Upper = round(model1_conf[, 2], 4),
+  P_value = format(model1_coef[, 5], scientific = TRUE, digits = 2)
+)
+
+names(model1_results) <- c("Variable", "Coefficient", "HR", "95% CI Lower", "95% CI Upper", "P-value")
+
+model1_results %>%
+  kable(format = "html", booktabs = TRUE, digits = 4) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
+  row_spec(which(as.numeric(model1_results$`P-value`) < 0.05), bold = TRUE, background = "#E8F4F8") %>%
+  footnote(
+    general = paste("Concordance =", round(summary(cox_model1)$concordance[1], 3)),
+    general_title = "Model Performance:"
+  )
+```
+
+## Proportional Hazards Assumption Test
+
+```{r test-ph, echo=TRUE}
+ph_test <- cox.zph(cox_model1)
+```
+
+```{r ph-plot-table, results='asis', echo=FALSE}
+ph_table <- as.data.frame(ph_test$table)
+ph_table$Variable <- rownames(ph_table)
+ph_table <- ph_table[, c("Variable", "chisq", "df", "p")]
+
+# Round values BEFORE renaming columns
+ph_table$chisq <- round(ph_table$chisq, 2)
+ph_table$p <- format(ph_table$p, scientific = TRUE, digits = 2)
+
+# Rename columns with special characters only for display
+names(ph_table) <- c("Variable", "χ²", "df", "p-value")
+
+ph_table %>%
+  kable(format = "html", booktabs = TRUE) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#ED7D31", color = "white") %>%
+  row_spec(nrow(ph_table), bold = TRUE, background = "#FFE699")
+```
+
+```{r ph-plot, echo=TRUE, results='markup'}
+plot(ph_test, main = "Schoenfeld Residuals: Proportional Hazards Assessment")
+```
+
+---
+
+# PRIMARY ANALYSIS: RESTRICTED MEAN SURVIVAL TIME
+
+```{r rmst-race-prep, echo=TRUE}
+seer_complete <- seer %>%
+  filter(!is.na(age_numeric), !is.na(income_cat), !is.na(stage), !is.na(time), !is.na(event)) %>%
+  select(time, event, race_ethnicity, income_cat, age_numeric, sex_binary, stage, year_of_diagnosis)
+
+cat("Analysis sample (complete cases):", nrow(seer_complete), "patients\n\n")
+
+tau <- 60
+rmst_race_results <- list()
+
+for (race in levels(seer_complete$race_ethnicity)) {
+  seer_race <- seer_complete %>% filter(race_ethnicity == race)
+  km_fit <- survfit(Surv(time, event) ~ 1, data = seer_race)
+  
+  times <- c(0, km_fit$time[km_fit$time <= tau])
+  surv <- c(1, km_fit$surv[km_fit$time <= tau])
+  rmst <- sum(diff(times) * (surv[-length(surv)] + surv[-1]) / 2)
+  
+  rmst_race_results[[race]] <- list(
+    RMST = rmst,
+    N = nrow(seer_race),
+    Events = sum(seer_race$event)
+  )
+}
+
+rmst_table <- data.frame(
+  Race_Ethnicity = names(rmst_race_results),
+  N = sapply(rmst_race_results, "[[", "N"),
+  Deaths = sapply(rmst_race_results, "[[", "Events"),
+  RMST_months = round(sapply(rmst_race_results, "[[", "RMST"), 2)
+)
+
+nhw_rmst <- rmst_table$RMST_months[rmst_table$Race_Ethnicity == "NHW"]
+rmst_table$Diff_vs_NHW <- round(rmst_table$RMST_months - nhw_rmst, 2)
+
+rmst_display <- rmst_table
+names(rmst_display) <- c("Race/Ethnicity", "N", "Deaths", "RMST (months)", "Difference vs NHW")
+```
+
+## RMST by Race/Ethnicity
+
+```{r rmst-race-table, results='asis', echo=FALSE}
+rmst_display %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#E7E6E6") %>%
+  column_spec(5, 
+    color = ifelse(rmst_display$`Difference vs NHW` < 0, "darkred", "darkgreen"),
+    bold = TRUE
+  )
+```
+
+## RMST by Income Category
+
+```{r rmst-income-prep, echo=TRUE}
+rmst_income_results <- list()
+
+for (inc in levels(seer_complete$income_cat)) {
+  seer_inc <- seer_complete %>% filter(income_cat == inc)
+  km_fit <- survfit(Surv(time, event) ~ 1, data = seer_inc)
+  
+  times <- c(0, km_fit$time[km_fit$time <= tau])
+  surv <- c(1, km_fit$surv[km_fit$time <= tau])
+  rmst <- sum(diff(times) * (surv[-length(surv)] + surv[-1]) / 2)
+  
+  rmst_income_results[[inc]] <- list(
+    RMST = rmst,
+    N = nrow(seer_inc),
+    Events = sum(seer_inc$event)
+  )
+}
+
+rmst_income_table <- data.frame(
+  Income_Category = names(rmst_income_results),
+  N = sapply(rmst_income_results, "[[", "N"),
+  Deaths = sapply(rmst_income_results, "[[", "Events"),
+  RMST_months = round(sapply(rmst_income_results, "[[", "RMST"), 2)
+)
+
+low_rmst <- rmst_income_table$RMST_months[rmst_income_table$Income_Category == "Low income"]
+rmst_income_table$Diff_vs_Low <- round(rmst_income_table$RMST_months - low_rmst, 2)
+
+rmst_income_display <- rmst_income_table
+names(rmst_income_display) <- c("Income Category", "N", "Deaths", "RMST (months)", "Difference vs Low")
+```
+
+```{r rmst-income-table, results='asis', echo=FALSE}
+rmst_income_display %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#E7E6E6") %>%
+  column_spec(5, 
+    color = "darkgreen",
+    bold = TRUE
+  )
+```
+
+---
+
+# SECONDARY OBJECTIVE: EFFECT MODIFICATION BY INCOME
+
+## Interaction Model: Race × Income
+
+```{r cox-model2, echo=TRUE, results='hide'}
+cox_model2 <- coxph(
+  Surv(time, event) ~ race_ethnicity * income_cat + age_numeric + sex_binary + 
+                       stage + year_of_diagnosis,
+  data = seer
+)
+```
+
+```{r cox-model2-lrt, results='asis', echo=FALSE}
+lrt <- anova(cox_model1, cox_model2)
+
+# Extract values correctly from LRT
+chisq_val <- lrt$Chisq[2]
+pval <- lrt$`Pr(>|Chi|)`[2]
+
+lrt_table <- data.frame(
+  Model = c("Main Effects", "Race × Income"),
+  Parameters = c(length(coef(cox_model1)), length(coef(cox_model2))),
+  Chisq = c(NA, round(chisq_val, 2)),
+  P_value = c(NA, format.pval(pval, digits = 3))
+)
+
+names(lrt_table) <- c("Model", "Parameters", "χ²", "P-value")
+
+lrt_table %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrr") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
+  footnote(general = paste("LRT χ² =", round(chisq_val, 2), "on", length(coef(cox_model2)) - length(coef(cox_model1)), "df; p =", format.pval(pval, digits = 3)))
+```
+
+## Interaction Coefficients
+
+```{r cox-model2-coefficients, results='asis', echo=FALSE}
+model2_coef <- summary(cox_model2)$coefficients
+model2_conf <- exp(confint(cox_model2))
+
+# Extract and display interaction terms
+interaction_indices <- grep(":", rownames(model2_coef))
+interaction_coef <- model2_coef[interaction_indices, ]
+interaction_conf <- model2_conf[interaction_indices, ]
+
+interaction_results <- data.frame(
+  Term = rownames(interaction_coef),
+  Coefficient = round(interaction_coef[, 1], 4),
+  HR = round(exp(interaction_coef[, 1]), 4),
+  HR_CI_Lower = round(interaction_conf[, 1], 4),
+  HR_CI_Upper = round(interaction_conf[, 2], 4),
+  P_value = format(interaction_coef[, 5], scientific = TRUE, digits = 2)
+)
+
+names(interaction_results) <- c("Interaction Term", "Coefficient", "HR", "95% CI Lower", "95% CI Upper", "P-value")
+
+interaction_results %>%
+  kable(format = "html", booktabs = TRUE, digits = 4) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "bordered"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 9
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
+  row_spec(which(as.numeric(interaction_results$`P-value`) < 0.05), bold = TRUE, background = "#E8F4F8") %>%
+  footnote(general = "Interaction terms represent how the effect of race/ethnicity varies by income category")
+```
+
+---
+
+# RESULTS
+
+Among 181,264 colon cancer patients from SEER (2010-2020) with median follow-up of 30 months and 54,688 cancer-specific deaths, significant health disparities in survival were observed by race/ethnicity and county-level income.
+
+**Primary Objective 1 - Race/Ethnicity Association:** Non-Hispanic Black (NHB) patients demonstrated significantly worse survival compared to Non-Hispanic White (NHW) patients (HR = 1.18, 95% CI: 1.15-1.21, p < 0.0001 in Cox model). Using RMST as the primary analysis method (due to proportional hazards violation, χ² = 2363.36, p < 0.0001), NHB patients had 42.48 months survival compared to 44.79 months for NHW, representing a loss of 2.31 months. Asian/Pacific Islander patients demonstrated favorable outcomes (HR = 0.91, RMST = 46.69 months, +1.90 months difference). Hispanic patients showed borderline excess hazard (HR = 1.03) with RMST of 45.71 months.
+
+**Primary Objective 2 - Income Association:** A clear socioeconomic gradient in survival was evident. High-income patients achieved 45.88 months RMST compared to 43.31 months for low-income patients, a difference of 2.57 months (6% longer survival). The linear trend across income categories was significant (HR = 0.89 per income step, p < 0.0001 in Cox model), indicating that each income category elevation was associated with an 11% reduction in hazard of death.
+
+**Secondary Objective - Effect Modification:** The race × income interaction model was statistically significant (LRT: χ² = 32.94 on 20 df, p = 0.0343), indicating that income modifies the race/ethnicity–mortality association. However, the improvement in model fit was modest (20 additional parameters yielded χ² gain of 32.94), and the interaction coefficients were generally not statistically significant (p > 0.05 for most terms), suggesting that race and income effects are largely independent rather than synergistic. Cancer stage was the strongest predictor overall (HR = 9.57 for localized vs. distant, p < 0.0001). The Cox main effects model demonstrated excellent discriminatory accuracy (Concordance = 0.824).
+
+---
+
+# DISCUSSION
+
+## Key Findings
+
+This analysis of SEER data documents significant and clinically meaningful health disparities in colon cancer-specific survival by both race/ethnicity and county-level income. Non-Hispanic Black patients experienced an 18% excess hazard of cancer specific death, translating to a 2.3-month reduction in 5-year survival compared to Non-Hispanic White patients. Income based disparities were consistent, with high-income patients gaining 2.57 months of survival (6%) compared to low-income patients, representing a clear dose response relationship.
+
+The secondary analysis revealed that county-level income statistically modifies the race/ethnicity mortality association, though the magnitude of this effect modification is modest and most interaction terms are not statistically significant. This suggests that race and income operate as largely independent predictors of survival.
+
+## Interpretation
+
+The racial disparity in survival is substantial and persists after adjustment for age, sex, cancer stage, and year of diagnosis. The income based gradient suggests that socioeconomic factors whether directly or as proxies for healthcare access, quality, comorbidities, or health literacy substantially impact cancer outcomes. The modest interaction suggests that targeted interventions should address both racial/ethnic minorities and low-income patients, but may not need to focus specifically on race, income combinations.
+
+## Implications
+
+Clinically, oncology teams should recognize that both NHB patients and low income patients face substantial survival disadvantages and may benefit from enhanced surveillance and supportive care protocols. Health policy should address both racial/ethnic and socioeconomic barriers to equitable cancer care.
+
+---
+
+# LIMITATIONS
+
+This study, while providing valuable insights into health disparities in colon cancer survival, has several important limitations:
+
+1. **Proportional Hazards Assumption Violation:** The Cox proportional hazards assumption was violated globally (χ² = 2363.36, p < 0.0001), necessitating RMST as the primary analysis. Results should not be extrapolated beyond 60 months.
+
+2. **County-Level vs. Individual-Level Socioeconomic Status:** Income was assessed at the county median household level rather than individual patient level, subject to ecological fallacy.
+
+3. **Lack of Treatment Data:** SEER does not consistently record chemotherapy, radiation, or surgical details, limiting mechanistic understanding.
+
+4. **Missing Comorbidity Information:** Comorbid conditions are not captured in SEER.
+
+5. **Selection Bias from Complete Case Analysis:** Complete case analysis assumes data missing completely at random (MCAR).
+
+6. **Regional Data Limitations:** SEER represents approximately 35% of the US population and may not be nationally representative.
+
+7. **Cancer-Specific vs. All-Cause Mortality:** This analysis examined cancer-specific death only; competing mortality was not captured.
+
+8. **"Other" Race Category:** The "Other" category included only 1,129 patients with 54 events, resulting in imprecise estimates.
+
+9. **Temporal Generalization:** These findings cover 2010-2020 and may not reflect current disparities.
+
+10. **Unmeasured Confounding:** Unmeasured factors such as provider implicit bias, patient trust, language barriers, insurance stability, and tumor biology may explain observed disparities.
+
+11. **Missing Mechanism Data:** We cannot determine whether disparities result from differences in screening, treatment intensity, adherence, or surveillance.
+
+12. **Modest Effect Modification:** While the interaction term is statistically significant, the modest effect size and non-significant individual interaction coefficients suggest limited practical effect modification.
+
+---
+
+# CONCLUSION
+
+This analysis of SEER data documents significant and clinically meaningful health disparities in colon cancer specific survival by race/ethnicity and county-level income. Non-Hispanic Black patients experienced an 18% excess hazard of cancer specific death, with a 2.3 month survival deficit over 5 years. Income showed a consistent dose-response relationship, with high income patients gaining 2.57 months of survival versus low income patients. County-level income statistically modifies the race/ethnicity mortality association, though the effect is modest and most interaction terms are not significant, suggesting largely independent effects. These findings underscore the need for targeted interventions addressing both racial/ethnic and socioeconomic disparities in cancer outcomes. Future research incorporating treatment data, individual level SES, and detailed mechanistic analyses is needed to identify modifiable drivers of these disparities.
+
+---
+
+# SESSION INFORMATION
+
+```{r session-info, echo=TRUE}
+sessionInfo()
+```
+
+---
+
+**Analysis Date:** `r format(Sys.Date(), "%B %d, %Y")`  
+**Study:** SEER Colon Cancer Survival Analysis  
+**Author:** Gagan Vijay  
+**Supervisory Faculty:** Dr. Kim, Washington University in St. Louis
