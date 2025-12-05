@@ -10,7 +10,6 @@ This project is part of graduate-level coursework in Advanced Data Analytics in 
 
 - `seerfinal_export.csv`: SEER registry data containing 182,113 colon cancer patients with clinical, demographic, and socioeconomic variables (Not included in repository—obtained directly from SEER)
 - `SEER_Analysis_Final.Rmd`: Complete R Markdown script containing data preparation, descriptive statistics, Kaplan-Meier curves, Cox regression models, RMST analysis, interaction testing, and comprehensive results and discussion
--  `SEER_Analysis_Final.html`: Knitted HTML document of the Rmd file above with all the exact details.
 - `README.md`: This file
 
 ## What the Code Does
@@ -42,23 +41,27 @@ The `SEER_Analysis_Final.Rmd` script performs the following analyses:
 - **Likelihood Ratio Test:** Compares main effects vs. interaction model fit
 - Reports hazard ratios with 95% confidence intervals
 
-### 5. Restricted Mean Survival Time (RMST) Analysis
-- Calculates RMST within a 60-month window for each race/ethnicity group (PRIMARY OBJECTIVE 1)
-- Calculates RMST for each income category (PRIMARY OBJECTIVE 2)
-- Computes differences versus reference groups with clinical interpretation
-- Chosen as primary analysis method due to proportional hazards assumption violation
+### 5. Restricted Mean Survival Time (RMST) Analysis — Primary Method
 
-### 6. Effect Modification Assessment
-- Tests and reports race × income interaction terms (SECONDARY OBJECTIVE)
-- Interprets interaction coefficients
-- Determines whether income modifies the race/ethnicity–mortality association
+#### a. Unadjusted RMST
+- RMST estimated for each race/ethnicity and income group over a **60-month window**.
+- Demonstrates absolute survival time differences (months lived on average).
+- Calculated using `survRM2::rmst2()` function.
 
-### 7. Statistical Output
-- Generates formatted tables for all results
-- Produces publication-ready figures (Kaplan-Meier curves, diagnostic plots)
-- Calculates model performance metrics (concordance index)
-- Provides comprehensive statistical inference and interpretation
+#### b. Adjusted RMST
+- RMST model adjusted for age, sex, stage, and year of diagnosis.
+- Conducted using ANCOVA-style modeling with RMST regression.
+- Evaluates differences in mean survival time while controlling for covariates.
+- Tables 2 and 3 report RMST estimates with 95% confidence intervals.
 
+### 6. Interaction Testing
+- Statistical testing for Race × Income interactions.
+- Small but significant interaction detected; race and income effects largely independent.
+
+### 7. Output
+- Publication-ready tables (Tables 1–3).
+- KM curves and model diagnostics.
+- Model performance: C-index, PH violations, survival differences.
 ## How to Run the Code
 
 ### Prerequisites
@@ -128,6 +131,9 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 - However, the effect is modest (20 new parameters yield only χ² gain of 32.94)
 - Most individual interaction coefficients are non-significant (p > 0.05)
 - **Interpretation:** Race and income effects are largely independent rather than synergistic
+
+**Secondary Objective - Interaction
+- Significant but moderate effect
 
 **Overall Model Performance:**
 - Concordance Index = 0.824 (excellent discrimination)
