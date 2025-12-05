@@ -132,8 +132,15 @@ install.packages(c("survival", "survminer", "tidyverse", "dplyr", "janitor", "gg
 - Most individual interaction coefficients are non-significant (p > 0.05)
 - **Interpretation:** Race and income effects are largely independent rather than synergistic
 
-**Secondary Objective - Interaction
-- Significant but moderate effect
+**Secondary Objective - Effect of cancer stage
+- NHB patients live 3.00 months less than NHW patients over 5 years
+(Adjusted RMST difference: −3.00 months; 95% CI: −5.01 to −0.99; P = 0.004)
+Decomposition of Disparity
+- Total Effect: −3.00 months (full disparity = 100%)
+- Direct Effect: −1.63 months (54%) - Treatment quality, care access, biological factors
+- Mediated Effect: −1.37 months (46%) - Later-stage diagnosis (screening disparities)
+
+
 
 **Overall Model Performance:**
 - Concordance Index = 0.824 (excellent discrimination)
