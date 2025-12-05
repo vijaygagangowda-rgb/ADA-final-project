@@ -1,17 +1,21 @@
 ---
-title: "Race/Ethnicity, County-Level Poverty, and Colon Cancer-Specific Survival in SEER, 2010-2020"
+title: "Race/Ethnicity, County-Level Poverty, and Colon Cancer-Specific Survival in
+  SEER, 2010-2020"
 author: "Gagan Vijay"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   html_document:
     toc: true
     toc_float: true
-    toc_depth: 2
+    toc_depth: 3
     code_folding: hide
     number_sections: false
-    theme: "flatly"
-    highlight: "tango"
-    df_print: "paged"
+    theme: flatly
+    highlight: tango
+    df_print: paged
+  pdf_document:
+    toc: true
+    toc_depth: '3'
 ---
 
 ```{r setup, include=FALSE}
@@ -39,11 +43,13 @@ Data were obtained from the Surveillance, Epidemiology, and End Results (SEER) R
 ## Variables and Operationalization
 
 **Outcome Variable - Cancer-Specific Survival:**
+
 - Measured as months from cancer diagnosis to cancer-specific death or censoring at last follow-up
 - Death classification: "Dead (attributable to this cancer dx)" coded as event=1, all others coded as event=0
 - Time variable derived from SEER survival_months field
 
 **Primary Exposure 1 - Race/Ethnicity:**
+
 - Original SEER variable: race_and_origin_recode_nhw_nhb_nhaian_nhapi_hispanic
 - Recoded into 6 categories:
   - "Non-Hispanic White" - NHW (reference)
@@ -55,6 +61,7 @@ Data were obtained from the Surveillance, Epidemiology, and End Results (SEER) R
 - Stored as ordered factor with NHW as reference level
 
 **Primary Exposure 2 - County-Level Income:**
+
 - Original SEER variable: median_household_income_inflation_adj_to_2021
 - Recoded into 5 ordered categories based on income thresholds:
   - "< $35,000", "$35,000 - $39,999", "$40,000 - $44,999" - Low income (reference)
@@ -65,6 +72,7 @@ Data were obtained from the Surveillance, Epidemiology, and End Results (SEER) R
 - Stored as ordered factor with Low income as reference level
 
 **Covariates:**
+
 - **Age:** Recoded from age_recode_with_1_year_olds into numeric midpoint values (18.5 to 87 years)
 - **Sex:** Recoded from original sex variable into binary factor (Male [reference], Female)
 - **Cancer Stage:** Derived from combined_summary_stage_2004, coded as ordered factor (Localized [reference], Regional, Distant)
@@ -72,15 +80,20 @@ Data were obtained from the Surveillance, Epidemiology, and End Results (SEER) R
 
 ## Statistical Analysis
 
-**Primary Objective 1 - Association between Race/Ethnicity and Colon Cancer Survival:** Kaplan-Meier curves with log-rank tests were generated to visualize and compare survival by racial/ethnic groups. Restricted Mean Survival Time (RMST) was calculated for each racial/ethnic group within a 60-month window to estimate differences in average survival.
+**Primary Objective 1 - Association between Race/Ethnicity and Colon Cancer Survival:** Kaplan-Meier curves with log-rank tests were generated to visualize and compare survival by racial/ethnic groups. Restricted Mean Survival Time (RMST) was calculated for each racial/ethnic group within a 60-month window to estimate differences in average survival. Both unadjusted and adjusted RMST analyses were conducted.
 
 **Primary Objective 2 - Association between County-Level Poverty and Colon Cancer Survival:** Kaplan-Meier curves with log-rank tests were generated to visualize and compare survival by income categories. RMST was calculated for each income category to quantify differences in survival.
 
-**Secondary Objective - Effect Modification:** A Cox proportional hazards model with race × income interaction terms was fit to assess whether county-level income modifies the race/ethnicity–mortality association. The proportional hazards (PH) assumption was tested using Schoenfeld residuals (cox.zph) for all Cox models.
+**Secondary Objective 1 - Effect Modification:** A Cox proportional hazards model with race × income interaction terms was fit to assess whether county-level income modifies the race/ethnicity–mortality association. The proportional hazards (PH) assumption was tested using Schoenfeld residuals (cox.zph) for all Cox models.
 
-**Preliminary Analyses:** Descriptive statistics summarized the study population by race/ethnicity, income category, and cancer stage. Main effects Cox model (without interactions) was fit to estimate adjusted associations, controlling for age, sex, stage, and year of diagnosis.
+**Secondary Objective 2 - Cancer Stage** -	Decompose total effects into direct effects and effects mediated through cancer stage
 
-**Software:** R version 4.4.2 with packages survival, survminer, ggplot2, dplyr, and kableExtra.
+**Adjusted RMST Analysis:** Given the proportional hazards assumption violation, adjusted RMST using the pseudo-observation approach was conducted as the primary analysis. Due to computational constraints (memory limitations with full dataset), a stratified random sample of approximately 5,000 patients was used, maintaining proportional representation across race/ethnicity and income categories. Two models were fit:
+
+1. **Total Effect Model:** Adjusted for confounders only (age, sex, year of diagnosis) - does NOT adjust for cancer stage (mediator)
+2. **Direct Effect Model:** Adjusted for confounders plus cancer stage - estimates disparity among same-stage patients
+
+**Software:** R version 4.4.2 with packages survival, survminer, pseudo, geepack, emmeans, ggplot2, dplyr, and kableExtra.
 
 ---
 
@@ -95,6 +108,11 @@ library(janitor)
 library(ggplot2)
 library(gridExtra)
 library(kableExtra)
+
+# For adjusted RMST
+library(pseudo)
+library(geepack)
+library(emmeans)
 
 theme_set(theme_minimal() + 
           theme(panel.grid.major = element_blank(),
@@ -159,8 +177,8 @@ seer <- seer %>%
       TRUE ~ NA_character_
     ),
     income_cat = factor(income_cat, 
-                       levels = c("Low income", "Lower-middle", "Middle", "Upper-middle", "High income"),
-                       ordered = TRUE)
+                        levels = c("Low income", "Lower-middle", "Middle", "Upper-middle", "High income"),
+                        ordered = TRUE)
   )
 ```
 
@@ -427,11 +445,9 @@ ph_table <- as.data.frame(ph_test$table)
 ph_table$Variable <- rownames(ph_table)
 ph_table <- ph_table[, c("Variable", "chisq", "df", "p")]
 
-# Round values BEFORE renaming columns
 ph_table$chisq <- round(ph_table$chisq, 2)
 ph_table$p <- format(ph_table$p, scientific = TRUE, digits = 2)
 
-# Rename columns with special characters only for display
 names(ph_table) <- c("Variable", "χ²", "df", "p-value")
 
 ph_table %>%
@@ -451,9 +467,13 @@ plot(ph_test, main = "Schoenfeld Residuals: Proportional Hazards Assessment")
 
 ---
 
-# PRIMARY ANALYSIS: RESTRICTED MEAN SURVIVAL TIME
+# PRIMARY ANALYSIS: RESTRICTED MEAN SURVIVAL TIME (RMST)
 
-```{r rmst-race-prep, echo=TRUE}
+## Unadjusted RMST
+
+### RMST by Race/Ethnicity (Unadjusted)
+
+```{r rmst-race-unadj, echo=TRUE}
 seer_complete <- seer %>%
   filter(!is.na(age_numeric), !is.na(income_cat), !is.na(stage), !is.na(time), !is.na(event)) %>%
   select(time, event, race_ethnicity, income_cat, age_numeric, sex_binary, stage, year_of_diagnosis)
@@ -478,25 +498,24 @@ for (race in levels(seer_complete$race_ethnicity)) {
   )
 }
 
-rmst_table <- data.frame(
+rmst_table_unadj <- data.frame(
   Race_Ethnicity = names(rmst_race_results),
   N = sapply(rmst_race_results, "[[", "N"),
   Deaths = sapply(rmst_race_results, "[[", "Events"),
   RMST_months = round(sapply(rmst_race_results, "[[", "RMST"), 2)
 )
 
-nhw_rmst <- rmst_table$RMST_months[rmst_table$Race_Ethnicity == "NHW"]
-rmst_table$Diff_vs_NHW <- round(rmst_table$RMST_months - nhw_rmst, 2)
+nhw_rmst_unadj <- rmst_table_unadj$RMST_months[rmst_table_unadj$Race_Ethnicity == "NHW"]
+rmst_table_unadj$Diff_vs_NHW <- round(rmst_table_unadj$RMST_months - nhw_rmst_unadj, 2)
 
-rmst_display <- rmst_table
-names(rmst_display) <- c("Race/Ethnicity", "N", "Deaths", "RMST (months)", "Difference vs NHW")
+rmst_display_unadj <- rmst_table_unadj
+names(rmst_display_unadj) <- c("Race/Ethnicity", "N", "Deaths", "RMST (months)", "Difference vs NHW")
 ```
 
-## RMST by Race/Ethnicity
-
-```{r rmst-race-table, results='asis', echo=FALSE}
-rmst_display %>%
-  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2) %>%
+```{r rmst-race-unadj-table, results='asis', echo=FALSE}
+rmst_display_unadj %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2,
+        caption = "Table: Unadjusted RMST by Race/Ethnicity (Full Sample)") %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "bordered"),
     full_width = FALSE,
@@ -505,14 +524,14 @@ rmst_display %>%
   row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
   row_spec(1, bold = TRUE, background = "#E7E6E6") %>%
   column_spec(5, 
-    color = ifelse(rmst_display$`Difference vs NHW` < 0, "darkred", "darkgreen"),
+    color = ifelse(rmst_display_unadj$`Difference vs NHW` < 0, "darkred", "darkgreen"),
     bold = TRUE
   )
 ```
 
-## RMST by Income Category
+### RMST by Income Category (Unadjusted)
 
-```{r rmst-income-prep, echo=TRUE}
+```{r rmst-income-unadj, echo=TRUE}
 rmst_income_results <- list()
 
 for (inc in levels(seer_complete$income_cat)) {
@@ -530,23 +549,24 @@ for (inc in levels(seer_complete$income_cat)) {
   )
 }
 
-rmst_income_table <- data.frame(
+rmst_income_table_unadj <- data.frame(
   Income_Category = names(rmst_income_results),
   N = sapply(rmst_income_results, "[[", "N"),
   Deaths = sapply(rmst_income_results, "[[", "Events"),
   RMST_months = round(sapply(rmst_income_results, "[[", "RMST"), 2)
 )
 
-low_rmst <- rmst_income_table$RMST_months[rmst_income_table$Income_Category == "Low income"]
-rmst_income_table$Diff_vs_Low <- round(rmst_income_table$RMST_months - low_rmst, 2)
+low_rmst_unadj <- rmst_income_table_unadj$RMST_months[rmst_income_table_unadj$Income_Category == "Low income"]
+rmst_income_table_unadj$Diff_vs_Low <- round(rmst_income_table_unadj$RMST_months - low_rmst_unadj, 2)
 
-rmst_income_display <- rmst_income_table
-names(rmst_income_display) <- c("Income Category", "N", "Deaths", "RMST (months)", "Difference vs Low")
+rmst_income_display_unadj <- rmst_income_table_unadj
+names(rmst_income_display_unadj) <- c("Income Category", "N", "Deaths", "RMST (months)", "Difference vs Low")
 ```
 
-```{r rmst-income-table, results='asis', echo=FALSE}
-rmst_income_display %>%
-  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2) %>%
+```{r rmst-income-unadj-table, results='asis', echo=FALSE}
+rmst_income_display_unadj %>%
+  kable(format = "html", booktabs = TRUE, align = "lrrrr", digits = 2,
+        caption = "Table: Unadjusted RMST by Income Category (Full Sample)") %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "bordered"),
     full_width = FALSE,
@@ -554,10 +574,338 @@ rmst_income_display %>%
   ) %>%
   row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
   row_spec(1, bold = TRUE, background = "#E7E6E6") %>%
-  column_spec(5, 
-    color = "darkgreen",
-    bold = TRUE
+  column_spec(5, color = "darkgreen", bold = TRUE)
+```
+
+---
+
+## Adjusted RMST (Pseudo-Observation Approach)
+
+Due to the proportional hazards assumption violation (χ² = 2363.36, p < 0.0001), we use adjusted RMST as the primary analysis method. The pseudo-observation approach allows adjustment for confounders while estimating RMST.
+
+**Computational Note:** Due to memory constraints with the full dataset (n = 181,264), a stratified random sample of approximately 5,000 patients was used. Stratification by race/ethnicity and income category ensures proportional representation is maintained.
+
+**Key Methodological Consideration:** Cancer stage is a **mediator** (on the causal pathway: Race/Poverty → Screening → Stage → Survival), not a confounder. We present two models:
+
+1. **Total Effect Model:** Adjusts for confounders only (age, sex, year) — estimates the full disparity
+2. **Direct Effect Model:** Adjusts for confounders + stage — estimates disparity among same-stage patients
+
+### Create Stratified Random Sample
+
+```{r stratified-sample, echo=TRUE}
+#seed for reproducibility
+set.seed(12345)
+
+# Target sample size
+target_n <- 5000
+
+# Creating stratified random sample maintaining proportions
+seer_sample <- seer_complete %>%
+  group_by(race_ethnicity, income_cat) %>%
+  slice_sample(prop = target_n / nrow(seer_complete)) %>%
+  ungroup()
+
+# sample verification
+cat("=== SAMPLING SUMMARY ===\n")
+cat("Full dataset:", nrow(seer_complete), "patients\n")
+cat("Stratified sample:", nrow(seer_sample), "patients\n")
+cat("Events in sample:", sum(seer_sample$event), "(", 
+    round(100*mean(seer_sample$event), 1), "%)\n\n")
+```
+
+```{r verify-stratification, results='asis', echo=TRUE}
+# stratification maintained distributions verification
+compare_dist <- data.frame(
+  Race = levels(seer_complete$race_ethnicity),
+  Full_N = as.numeric(table(seer_complete$race_ethnicity)),
+  Full_Pct = round(100 * as.numeric(table(seer_complete$race_ethnicity)) / nrow(seer_complete), 1),
+  Sample_N = as.numeric(table(seer_sample$race_ethnicity)),
+  Sample_Pct = round(100 * as.numeric(table(seer_sample$race_ethnicity)) / nrow(seer_sample), 1)
+)
+
+compare_dist %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Verification: Race/Ethnicity Distribution (Full vs Sample)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#6C757D", color = "white")
+```
+
+### Calculate Pseudo-Observations
+
+```{r pseudo-calculation, echo=TRUE}
+# Centering continuous variables
+seer_sample <- seer_sample %>%
+  mutate(
+    age_centered = age_numeric - mean(age_numeric),
+    year_centered = year_of_diagnosis - 2015
   )
+
+cat("Calculating pseudo-observations for RMST (τ =", tau, "months)...\n")
+
+# Calculating pseudo-observations
+pseudo_rmst <- pseudomean(
+  time = seer_sample$time,
+  event = seer_sample$event,
+  tmax = tau
+)
+
+# Adding to dataset
+seer_sample$pseudo_rmst <- pseudo_rmst
+
+cat("Pseudo-observations calculated successfully!\n")
+cat("Mean pseudo-RMST:", round(mean(pseudo_rmst), 2), "months\n")
+```
+
+---
+
+### Model 1: Total Effect (Confounders Only — NO Stage Adjustment)
+
+This model estimates the **total effect** of race/ethnicity and income on survival, including any effect operating through stage at diagnosis.
+
+```{r glm-total-effect, echo=TRUE}
+# TOTAL EFFECT MODEL
+# Adjusts for: Age, Sex, Year of Diagnosis
+# Does NOT adjust for: Cancer Stage (mediator)
+
+glm_total <- glm(
+  pseudo_rmst ~ race_ethnicity + income_cat + age_centered + sex_binary + year_centered,
+  data = seer_sample,
+  family = gaussian
+)
+
+cat("=== TOTAL EFFECT MODEL ===\n")
+cat("Formula: pseudo_rmst ~ race_ethnicity + income_cat + age + sex + year\n")
+cat("Adjusts for: Age, Sex, Year (confounders only)\n")
+cat("Does NOT adjust for: Stage (mediator)\n\n")
+
+summary(glm_total)
+```
+
+#### Adjusted RMST by Race/Ethnicity (Total Effect)
+
+```{r emmeans-race-total, results='asis', echo=TRUE}
+# Estimated marginal means by race/ethnicity
+emm_race_total <- emmeans(glm_total, "race_ethnicity")
+emm_race_total_df <- as.data.frame(emm_race_total)
+
+# Calculatimg difference vs NHW
+nhw_rmst_total <- emm_race_total_df$emmean[emm_race_total_df$race_ethnicity == "NHW"]
+emm_race_total_df$diff_vs_NHW <- emm_race_total_df$emmean - nhw_rmst_total
+
+# Display
+emm_race_total_display <- emm_race_total_df %>%
+  select(race_ethnicity, emmean, SE, lower.CL, upper.CL, diff_vs_NHW) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)))
+
+names(emm_race_total_display) <- c("Race/Ethnicity", "Adjusted RMST", "SE", "95% CI Lower", "95% CI Upper", "Diff vs NHW")
+
+emm_race_total_display %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Adjusted RMST by Race/Ethnicity — TOTAL EFFECT (No Stage Adjustment)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#2E86AB", color = "white") %>%
+  row_spec(1, background = "#E8E8E8") %>%
+  column_spec(6, bold = TRUE, 
+              color = ifelse(emm_race_total_display$`Diff vs NHW` < 0, "darkred", "darkgreen"))
+```
+
+#### Pairwise Comparisons vs NHW (Total Effect)
+
+```{r pairs-race-total, results='asis', echo=TRUE}
+# Pairwise contrasts vs NHW with confidence intervals
+pairs_race_total <- contrast(emm_race_total, method = "trt.vs.ctrl", ref = 1)
+pairs_race_total_ci <- confint(pairs_race_total)
+pairs_race_total_df <- as.data.frame(pairs_race_total_ci)
+
+pairs_race_total_df %>%
+  mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Pairwise Differences in RMST vs NHW — TOTAL EFFECT") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#2E86AB", color = "white")
+```
+
+#### Adjusted RMST by Income Category (Total Effect)
+
+```{r emmeans-income-total, results='asis', echo=TRUE}
+# Estimated marginal means by income
+emm_income_total <- emmeans(glm_total, "income_cat")
+emm_income_total_df <- as.data.frame(emm_income_total)
+
+# Calculating difference vs Low income
+low_rmst_total <- emm_income_total_df$emmean[emm_income_total_df$income_cat == "Low income"]
+emm_income_total_df$diff_vs_Low <- emm_income_total_df$emmean - low_rmst_total
+
+# Display
+emm_income_total_display <- emm_income_total_df %>%
+  select(income_cat, emmean, SE, lower.CL, upper.CL, diff_vs_Low) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)))
+
+names(emm_income_total_display) <- c("Income Category", "Adjusted RMST", "SE", "95% CI Lower", "95% CI Upper", "Diff vs Low")
+
+emm_income_total_display %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Adjusted RMST by Income Category — TOTAL EFFECT (No Stage Adjustment)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#28A745", color = "white") %>%
+  row_spec(1, background = "#E8E8E8") %>%
+  column_spec(6, bold = TRUE, color = "darkgreen")
+```
+
+---
+
+### Model 2: Direct Effect (Including Stage Adjustment)
+
+This model estimates the **direct effect** — the disparity that exists among patients diagnosed at the same stage.
+
+```{r glm-direct-effect, echo=TRUE}
+# DIRECT EFFECT MODEL
+# Adjusts for: Age, Sex, Year, Stage
+
+glm_direct <- glm(
+  pseudo_rmst ~ race_ethnicity + income_cat + age_centered + sex_binary + year_centered + stage,
+  data = seer_sample,
+  family = gaussian
+)
+
+cat("=== DIRECT EFFECT MODEL ===\n")
+cat("Formula: pseudo_rmst ~ race_ethnicity + income_cat + age + sex + year + stage\n")
+cat("Adjusts for: Age, Sex, Year, Stage\n")
+cat("Note: Adjusting for stage gives disparity among same-stage patients\n\n")
+
+summary(glm_direct)
+```
+
+#### Adjusted RMST by Race/Ethnicity (Direct Effect)
+
+```{r emmeans-race-direct, results='asis', echo=TRUE}
+# Estimated marginal means by race/ethnicity (direct effect)
+emm_race_direct <- emmeans(glm_direct, "race_ethnicity")
+emm_race_direct_df <- as.data.frame(emm_race_direct)
+
+# Calculating difference vs NHW
+nhw_rmst_direct <- emm_race_direct_df$emmean[emm_race_direct_df$race_ethnicity == "NHW"]
+emm_race_direct_df$diff_vs_NHW <- emm_race_direct_df$emmean - nhw_rmst_direct
+
+# Display
+emm_race_direct_display <- emm_race_direct_df %>%
+  select(race_ethnicity, emmean, SE, lower.CL, upper.CL, diff_vs_NHW) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)))
+
+names(emm_race_direct_display) <- c("Race/Ethnicity", "Adjusted RMST", "SE", "95% CI Lower", "95% CI Upper", "Diff vs NHW")
+
+emm_race_direct_display %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Adjusted RMST by Race/Ethnicity — DIRECT EFFECT (With Stage Adjustment)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#DC3545", color = "white") %>%
+  row_spec(1, background = "#E8E8E8") %>%
+  column_spec(6, bold = TRUE, 
+              color = ifelse(emm_race_direct_display$`Diff vs NHW` < 0, "darkred", "darkgreen"))
+```
+
+#### Adjusted RMST by Income Category (Direct Effect)
+
+```{r emmeans-income-direct, results='asis', echo=TRUE}
+# Estimated marginal means by income (direct effect)
+emm_income_direct <- emmeans(glm_direct, "income_cat")
+emm_income_direct_df <- as.data.frame(emm_income_direct)
+
+# Calculating difference vs Low income
+low_rmst_direct <- emm_income_direct_df$emmean[emm_income_direct_df$income_cat == "Low income"]
+emm_income_direct_df$diff_vs_Low <- emm_income_direct_df$emmean - low_rmst_direct
+
+# Display
+emm_income_direct_display <- emm_income_direct_df %>%
+  select(income_cat, emmean, SE, lower.CL, upper.CL, diff_vs_Low) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)))
+
+names(emm_income_direct_display) <- c("Income Category", "Adjusted RMST", "SE", "95% CI Lower", "95% CI Upper", "Diff vs Low")
+
+emm_income_direct_display %>%
+  kable(format = "html", booktabs = TRUE,
+        caption = "Adjusted RMST by Income Category — DIRECT EFFECT (With Stage Adjustment)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#FFC107", color = "black") %>%
+  row_spec(1, background = "#E8E8E8") %>%
+  column_spec(6, bold = TRUE, color = "darkgreen")
+```
+
+---
+
+### Comparison: Total Effect vs Direct Effect
+
+```{r comparison-race, results='asis', echo=TRUE}
+# Compare Total vs Direct effects for Race/Ethnicity
+comparison_race <- data.frame(
+  Race_Ethnicity = levels(seer_sample$race_ethnicity),
+  Unadj_RMST = rmst_table_unadj$RMST_months,
+  Unadj_Diff = rmst_table_unadj$Diff_vs_NHW,
+  Total_RMST = round(emm_race_total_df$emmean, 2),
+  Total_Diff = round(emm_race_total_df$diff_vs_NHW, 2),
+  Direct_RMST = round(emm_race_direct_df$emmean, 2),
+  Direct_Diff = round(emm_race_direct_df$diff_vs_NHW, 2)
+)
+
+# Calculating mediated effect (through stage)
+comparison_race$Mediated <- round(comparison_race$Total_Diff - comparison_race$Direct_Diff, 2)
+
+comparison_race %>%
+  rename(
+    `Race/Ethnicity` = Race_Ethnicity,
+    `Unadj RMST` = Unadj_RMST,
+    `Unadj Diff` = Unadj_Diff,
+    `Total RMST` = Total_RMST,
+    `Total Diff` = Total_Diff,
+    `Direct RMST` = Direct_RMST,
+    `Direct Diff` = Direct_Diff,
+    `Mediated by Stage` = Mediated
+  ) %>%
+  kable(format = "html", booktabs = TRUE, digits = 2,
+        caption = "Comparison: Unadjusted vs Total Effect vs Direct Effect — By Race/Ethnicity") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#6C757D", color = "white") %>%
+  column_spec(3, color = ifelse(comparison_race$Unadj_Diff < 0, "darkred", "darkgreen")) %>%
+  column_spec(5, bold = TRUE, color = ifelse(comparison_race$Total_Diff < 0, "darkred", "darkgreen")) %>%
+  column_spec(7, color = ifelse(comparison_race$Direct_Diff < 0, "darkred", "darkgreen")) %>%
+  column_spec(8, bold = TRUE, color = "purple") %>%
+  footnote(
+    general = "Unadjusted = crude KM-based. Total = adjusted for confounders only. Direct = also adjusted for stage. Mediated = Total − Direct (portion through stage).",
+    general_title = "Notes: "
+  )
+```
+
+```{r comparison-income, results='asis', echo=TRUE}
+# Comparing  Income
+comparison_income <- data.frame(
+  Income_Category = levels(seer_sample$income_cat),
+  Unadj_RMST = rmst_income_table_unadj$RMST_months,
+  Unadj_Diff = rmst_income_table_unadj$Diff_vs_Low,
+  Total_RMST = round(emm_income_total_df$emmean, 2),
+  Total_Diff = round(emm_income_total_df$diff_vs_Low, 2),
+  Direct_RMST = round(emm_income_direct_df$emmean, 2),
+  Direct_Diff = round(emm_income_direct_df$diff_vs_Low, 2)
+)
+
+comparison_income$Mediated <- round(comparison_income$Total_Diff - comparison_income$Direct_Diff, 2)
+
+comparison_income %>%
+  rename(
+    `Income Category` = Income_Category,
+    `Unadj RMST` = Unadj_RMST,
+    `Unadj Diff` = Unadj_Diff,
+    `Total RMST` = Total_RMST,
+    `Total Diff` = Total_Diff,
+    `Direct RMST` = Direct_RMST,
+    `Direct Diff` = Direct_Diff,
+    `Mediated by Stage` = Mediated
+  ) %>%
+  kable(format = "html", booktabs = TRUE, digits = 2,
+        caption = "Comparison: Unadjusted vs Total Effect vs Direct Effect — By Income Category") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#6C757D", color = "white") %>%
+  column_spec(5, bold = TRUE, color = "darkgreen") %>%
+  column_spec(8, bold = TRUE, color = "purple")
 ```
 
 ---
@@ -577,7 +925,6 @@ cox_model2 <- coxph(
 ```{r cox-model2-lrt, results='asis', echo=FALSE}
 lrt <- anova(cox_model1, cox_model2)
 
-# Extract values correctly from LRT
 chisq_val <- lrt$Chisq[2]
 pval <- lrt$`Pr(>|Chi|)`[2]
 
@@ -598,7 +945,9 @@ lrt_table %>%
     position = "center"
   ) %>%
   row_spec(0, bold = TRUE, background = "#4472C4", color = "white") %>%
-  footnote(general = paste("LRT χ² =", round(chisq_val, 2), "on", length(coef(cox_model2)) - length(coef(cox_model1)), "df; p =", format.pval(pval, digits = 3)))
+  footnote(general = paste("LRT χ² =", round(chisq_val, 2), "on", 
+                           length(coef(cox_model2)) - length(coef(cox_model1)), 
+                           "df; p =", format.pval(pval, digits = 3)))
 ```
 
 ## Interaction Coefficients
@@ -607,7 +956,6 @@ lrt_table %>%
 model2_coef <- summary(cox_model2)$coefficients
 model2_conf <- exp(confint(cox_model2))
 
-# Extract and display interaction terms
 interaction_indices <- grep(":", rownames(model2_coef))
 interaction_coef <- model2_coef[interaction_indices, ]
 interaction_conf <- model2_conf[interaction_indices, ]
@@ -638,15 +986,37 @@ interaction_results %>%
 
 ---
 
-# RESULTS
+# RESULTS SUMMARY
 
-Among 181,264 colon cancer patients from SEER (2010-2020) with median follow-up of 30 months and 54,688 cancer-specific deaths, significant health disparities in survival were observed by race/ethnicity and county-level income.
+```{r results-summary, echo=FALSE, results='markup'}
+cat("=======================================================================\n")
+cat("                        RESULTS SUMMARY                                \n")
+cat("=======================================================================\n\n")
 
-**Primary Objective 1 - Race/Ethnicity Association:** Non-Hispanic Black (NHB) patients demonstrated significantly worse survival compared to Non-Hispanic White (NHW) patients (HR = 1.18, 95% CI: 1.15-1.21, p < 0.0001 in Cox model). Using RMST as the primary analysis method (due to proportional hazards violation, χ² = 2363.36, p < 0.0001), NHB patients had 42.48 months survival compared to 44.79 months for NHW, representing a loss of 2.31 months. Asian/Pacific Islander patients demonstrated favorable outcomes (HR = 0.91, RMST = 46.69 months, +1.90 months difference). Hispanic patients showed borderline excess hazard (HR = 1.03) with RMST of 45.71 months.
+cat("SAMPLE CHARACTERISTICS\n")
+cat("----------------------\n")
+cat("Total sample: N =", nrow(seer_complete), "colon cancer patients (2010-2020)\n")
+cat("Events:", sum(seer_complete$event), "cancer-specific deaths (", 
+    round(100*mean(seer_complete$event), 1), "%)\n", sep = "")
+cat("Adjusted RMST analysis: n =", nrow(seer_sample), "(stratified random sample)\n\n")
 
-**Primary Objective 2 - Income Association:** A clear socioeconomic gradient in survival was evident. High-income patients achieved 45.88 months RMST compared to 43.31 months for low-income patients, a difference of 2.57 months (6% longer survival). The linear trend across income categories was significant (HR = 0.89 per income step, p < 0.0001 in Cox model), indicating that each income category elevation was associated with an 11% reduction in hazard of death.
+cat("PRIMARY OBJECTIVE 1: RACE/ETHNICITY AND SURVIVAL\n")
+cat("------------------------------------------------\n")
+cat("NHB vs NHW (Unadjusted):", rmst_table_unadj$Diff_vs_NHW[rmst_table_unadj$Race_Ethnicity == "NHB"], "months\n")
+cat("NHB vs NHW (Total Effect):", round(emm_race_total_df$diff_vs_NHW[emm_race_total_df$race_ethnicity == "NHB"], 2), "months\n")
+cat("NHB vs NHW (Direct Effect):", round(emm_race_direct_df$diff_vs_NHW[emm_race_direct_df$race_ethnicity == "NHB"], 2), "months\n\n")
 
-**Secondary Objective - Effect Modification:** The race × income interaction model was statistically significant (LRT: χ² = 32.94 on 20 df, p = 0.0343), indicating that income modifies the race/ethnicity–mortality association. However, the improvement in model fit was modest (20 additional parameters yielded χ² gain of 32.94), and the interaction coefficients were generally not statistically significant (p > 0.05 for most terms), suggesting that race and income effects are largely independent rather than synergistic. Cancer stage was the strongest predictor overall (HR = 9.57 for localized vs. distant, p < 0.0001). The Cox main effects model demonstrated excellent discriminatory accuracy (Concordance = 0.824).
+cat("PRIMARY OBJECTIVE 2: INCOME AND SURVIVAL\n")
+cat("----------------------------------------\n")
+cat("High vs Low Income (Unadjusted): +", rmst_income_table_unadj$Diff_vs_Low[rmst_income_table_unadj$Income_Category == "High income"], "months\n", sep = "")
+cat("High vs Low Income (Total Effect): +", round(emm_income_total_df$diff_vs_Low[emm_income_total_df$income_cat == "High income"], 2), "months\n\n", sep = "")
+
+cat("SECONDARY OBJECTIVE: EFFECT MODIFICATION\n")
+cat("----------------------------------------\n")
+cat("Race × Income interaction: χ² =", round(chisq_val, 2), ", p =", format.pval(pval, digits = 3), "\n")
+cat("Interpretation: Statistically significant but modest practical magnitude\n")
+cat("=======================================================================\n")
+```
 
 ---
 
@@ -654,53 +1024,42 @@ Among 181,264 colon cancer patients from SEER (2010-2020) with median follow-up 
 
 ## Key Findings
 
-This analysis of SEER data documents significant and clinically meaningful health disparities in colon cancer-specific survival by both race/ethnicity and county-level income. Non-Hispanic Black patients experienced an 18% excess hazard of cancer specific death, translating to a 2.3-month reduction in 5-year survival compared to Non-Hispanic White patients. Income based disparities were consistent, with high-income patients gaining 2.57 months of survival (6%) compared to low-income patients, representing a clear dose response relationship.
+This analysis of SEER data documents significant and clinically meaningful health disparities in colon cancer-specific survival by both race/ethnicity and county-level income.
 
-The secondary analysis revealed that county-level income statistically modifies the race/ethnicity mortality association, though the magnitude of this effect modification is modest and most interaction terms are not statistically significant. This suggests that race and income operate as largely independent predictors of survival.
+**Methodological Innovation:** This analysis employed adjusted RMST using the pseudo-observation approach, which appropriately addresses the proportional hazards assumption violation while allowing adjustment for confounders. We presented both:
 
-## Interpretation
+1. **Total Effect:** The full disparity, adjusting for confounders only (age, sex, year)
+2. **Direct Effect:** The disparity among same-stage patients (also adjusting for stage)
 
-The racial disparity in survival is substantial and persists after adjustment for age, sex, cancer stage, and year of diagnosis. The income based gradient suggests that socioeconomic factors whether directly or as proxies for healthcare access, quality, comorbidities, or health literacy substantially impact cancer outcomes. The modest interaction suggests that targeted interventions should address both racial/ethnic minorities and low-income patients, but may not need to focus specifically on race, income combinations.
+The difference between these estimates reflects the portion of the disparity **mediated through cancer stage** (i.e., due to later-stage diagnosis among disadvantaged groups).
 
-## Implications
+## Interpretation of Mediation
 
-Clinically, oncology teams should recognize that both NHB patients and low income patients face substantial survival disadvantages and may benefit from enhanced surveillance and supportive care protocols. Health policy should address both racial/ethnic and socioeconomic barriers to equitable cancer care.
+The "Mediated by Stage" column in the comparison tables shows how much of the disparity operates through differences in stage at diagnosis:
 
----
+- **Positive mediation:** Part of the disadvantage is due to later-stage diagnosis (screening disparities)
+- **Remaining direct effect:** Disparity that persists even among same-stage patients (treatment quality, adherence, biology)
 
-# LIMITATIONS
+## Limitations
 
-This study, while providing valuable insights into health disparities in colon cancer survival, has several important limitations:
-
-1. **Proportional Hazards Assumption Violation:** The Cox proportional hazards assumption was violated globally (χ² = 2363.36, p < 0.0001), necessitating RMST as the primary analysis. Results should not be extrapolated beyond 60 months.
-
-2. **County-Level vs. Individual-Level Socioeconomic Status:** Income was assessed at the county median household level rather than individual patient level, subject to ecological fallacy.
-
-3. **Lack of Treatment Data:** SEER does not consistently record chemotherapy, radiation, or surgical details, limiting mechanistic understanding.
-
-4. **Missing Comorbidity Information:** Comorbid conditions are not captured in SEER.
-
-5. **Selection Bias from Complete Case Analysis:** Complete case analysis assumes data missing completely at random (MCAR).
-
-6. **Regional Data Limitations:** SEER represents approximately 35% of the US population and may not be nationally representative.
-
-7. **Cancer-Specific vs. All-Cause Mortality:** This analysis examined cancer-specific death only; competing mortality was not captured.
-
-8. **"Other" Race Category:** The "Other" category included only 1,129 patients with 54 events, resulting in imprecise estimates.
-
-9. **Temporal Generalization:** These findings cover 2010-2020 and may not reflect current disparities.
-
-10. **Unmeasured Confounding:** Unmeasured factors such as provider implicit bias, patient trust, language barriers, insurance stability, and tumor biology may explain observed disparities.
-
-11. **Missing Mechanism Data:** We cannot determine whether disparities result from differences in screening, treatment intensity, adherence, or surveillance.
-
-12. **Modest Effect Modification:** While the interaction term is statistically significant, the modest effect size and non-significant individual interaction coefficients suggest limited practical effect modification.
+1. **Proportional Hazards Violation:** Cox model results should be interpreted with caution
+2. **Stratified Sampling:** Adjusted RMST used n ≈ 5,000 sample due to computational constraints
+3. **County-Level Income:** Subject to ecological fallacy
+4. **Missing Treatment Data:** Cannot assess treatment-related mechanisms
+5. **Stage as Mediator:** Adjusting for stage estimates direct effect only
 
 ---
 
 # CONCLUSION
 
-This analysis of SEER data documents significant and clinically meaningful health disparities in colon cancer specific survival by race/ethnicity and county-level income. Non-Hispanic Black patients experienced an 18% excess hazard of cancer specific death, with a 2.3 month survival deficit over 5 years. Income showed a consistent dose-response relationship, with high income patients gaining 2.57 months of survival versus low income patients. County-level income statistically modifies the race/ethnicity mortality association, though the effect is modest and most interaction terms are not significant, suggesting largely independent effects. These findings underscore the need for targeted interventions addressing both racial/ethnic and socioeconomic disparities in cancer outcomes. Future research incorporating treatment data, individual level SES, and detailed mechanistic analyses is needed to identify modifiable drivers of these disparities.
+This population-based cohort study documents substantial disparities in colon cancer survival by race/ethnicity and county-level income. Using adjusted RMST (pseudo-observation approach), we demonstrate that:
+
+1. **Non-Hispanic Black patients** experience significant survival disadvantages compared to Non-Hispanic White patients
+2. A clear **socioeconomic gradient** exists, with high-income patients experiencing better outcomes
+3. Part of the racial disparity is **mediated through later-stage diagnosis**, but a substantial **direct effect** remains
+4. Race/ethnicity and income effects operate **largely independently**
+
+These findings underscore the need for multilevel interventions addressing both systemic racism and economic barriers to achieve health equity in cancer outcomes.
 
 ---
 
@@ -712,7 +1071,7 @@ sessionInfo()
 
 ---
 
-**Analysis Date:** `r format(Sys.Date(), "%B %d, %Y")`  
+**Analysis Date:** `r format(Sys.Date(), "%B %d, %Y")`
 **Study:** SEER Colon Cancer Survival Analysis  
 **Author:** Gagan Vijay  
 **Supervisory Faculty:** Dr. Kim, Washington University in St. Louis
